@@ -7,4 +7,121 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-        
+
+enum Role {
+  CUSTOMER
+  ORGANIZER
+}
+
+enum TransactionStatus {
+  WAITING_PAYMENT
+  WAITING_CONFIRMATION
+  DONE
+  REJECTED
+  EXPIRED
+  CANCELED
+}
+
+enum NotificationType {
+  TRANSACTION
+  SYSTEM
+  REWARD
+}
+
+model User {
+  id              Int               @id @default(autoincrement())
+  name            String
+  email           String            @unique
+  password        String
+  role            Role
+  referralCode    String?           @unique
+  referredBy      String?
+  pointsBalance   Int               @default(0)
+  createdAt       DateTime          @default(now())
+
+  // Relations
+  events          Event[]           @relation("OrganizerEvents")
+  transactions    Transaction[]
+  notifications   Notification[]
+  pointsHistory   PointsHistory[]
+  vouchers        Voucher[]
+}
+
+model Event {
+  id             Int                @id @default(autoincrement())
+  title          String
+  description    String?
+  location       String?
+  startDate      DateTime
+  endDate        DateTime
+  availableSeats Int
+  price          Float
+  status         String             @default("active")
+  createdAt      DateTime           @default(now())
+
+  // Relation ke Organizer
+  organizer      User               @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  organizerId    Int
+
+  // Relation ke transaksi
+  transactions   Transaction[]
+}
+
+model Transaction {
+  id             Int                 @id @default(autoincrement())
+  totalPrice     Float
+  status         TransactionStatus   @default(WAITING_PAYMENT)
+  paymentProof   String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  // Relation
+  user           User                @relation(fields: [userId], references: [id])
+  userId         Int
+  event          Event               @relation(fields: [eventId], references: [id])
+  eventId        Int
+  details        TransactionDetail[]
+}
+
+model TransactionDetail {
+  id              Int          @id @default(autoincrement())
+  ticketQuantity  Int
+  pricePerTicket  Float
+  transaction     Transaction  @relation(fields: [transactionId], references: [id])
+  transactionId   Int
+}
+
+model Notification {
+  id         Int               @id @default(autoincrement())
+  title      String
+  message    String
+  type       NotificationType
+  isRead     Boolean           @default(false)
+  createdAt  DateTime          @default(now())
+
+  user       User              @relation(fields: [userId], references: [id])
+  userId     Int
+}
+
+model PointsHistory {
+  id          Int        @id @default(autoincrement())
+  points      Int
+  source      String
+  expiresAt   DateTime
+  createdAt   DateTime   @default(now())
+
+  user        User       @relation(fields: [userId], references: [id])
+  userId      Int
+}
+
+model Voucher {
+  id              Int        @id @default(autoincrement())
+  code            String     @unique
+  discountAmount  Float
+  isUsed          Boolean    @default(false)
+  expiresAt       DateTime
+  createdAt       DateTime   @default(now())
+
+  user            User       @relation(fields: [userId], references: [id])
+  userId          Int
+}

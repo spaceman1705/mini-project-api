@@ -1,0 +1,10 @@
+| Folder           | Fungsi                                                                                                |
+| ---------------- | ----------------------------------------------------------------------------------------------------- |
+| **config/**      | Menyimpan konfigurasi global seperti koneksi Prisma dan mailer.                                       |
+| **controllers/** | Berisi handler untuk HTTP request (request → response). Tidak ada logika berat di sini.               |
+| **services/**    | Tempat logika bisnis (misal: menambah poin referral, menghitung statistik event, rollback transaksi). |
+| **routes/**      | Menghubungkan endpoint HTTP ke controller.                                                            |
+| **middlewares/** | Validasi token JWT, proteksi role, dan error handling.                                                |
+| **utils/**       | Kumpulan helper function (JWT, tanggal, email template).                                              |
+| **types/**       | Tipe tambahan agar TypeScript lebih ketat.                                                            |
+| **prisma/**      | File schema dan migrasi database.                                                                     |
