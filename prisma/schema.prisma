@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -12,6 +12,17 @@ enum Role {
   ADMIN
   CUSTOMER
   ORGANIZER
+}
+
+enum PointType {
+  EARNED
+  USED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELED
 }
 
 enum TransactionStatus {
@@ -29,109 +40,217 @@ enum NotificationType {
   REWARD
 }
 
+model RegisterToken {
+  id String @id @default(uuid())
+  token String @unique
+  createdAt DateTime @default(now())
+}
+
 model User {
-  id              String            @id @default(uuid())
-  firstname       String
-  lastname        String
-  email           String            @unique
-  password        String
-  role            Role              @default(CUSTOMER)
-  referralCode    String?           @unique
-  referredBy      String?
-  pointsBalance   Int               @default(0)
-  createdAt       DateTime          @default(now())
-  user_img        String?
+  id String @id @default(uuid())
+
+  firstname String
+  email String @unique
+  password String
+  role Role @default(CUSTOMER)
+  refferalCode String @unique
+  refferedByUserId String?
+  refferedByUser User? @relation("UserRefferal", fields: [refferedByUserId], references: [id], onDelete: SetNull)
+  profilePicture String?
   isVerified Boolean @default(false)
 
-  // Relations
-  events          Event[]           @relation("OrganizerEvents")
-  transactions    Transaction[]
-  notifications   Notification[]
-  pointsHistory   PointsHistory[]
-  vouchers        Voucher[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refferal User[] @relation("UserRefferal")
+  point Point[]
+  event Event[]
+  coupon Coupon[]
+  transaction Transaction[]
+  review Review[]
+  notification Notification[]
+
+  @@map("users")
+}
+
+model Point {
+  id String @id @default(uuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount Int
+  pointType PointType
+  description String
+  expiredAt DateTime?
+  transactionId String?
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@map("points")
+}
+
+model Coupon {
+  id String @id @default(uuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code String @unique
+  discountAmount Float @default(0)
+  isUsed Boolean @default(false)
+  expiredAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transaction Transaction[]
+
+  @@map("coupons")  
 }
 
 model Event {
-  id             Int                @id @default(autoincrement())
-  title          String
-  description    String?
-  location       String?
-  startDate      DateTime
-  endDate        DateTime
+  id String @id @default(uuid())
+
+  organizerId String
+  organizer User @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  title String
+  slug String @unique
+  description String
+  category String
+  location String
+  startDate DateTime
+  endDate DateTime
+  price Float @default(0)
   availableSeats Int
-  price          Float
-  status         String             @default("active")
-  createdAt      DateTime           @default(now())
+  status EventStatus @default(PUBLISHED)
+  bannerImg String?
 
-  // Relation ke Organizer
-  organizer      User               @relation("OrganizerEvents", fields: [organizerId], references: [id])
-  organizerId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relation ke transaksi
-  transactions   Transaction[]
+  ticketType TicketType[]
+  voucher Voucher[]
+  transaction Transaction[]
+  review Review[]
+
+  @@map("events")
 }
 
-model Transaction {
-  id             Int                 @id @default(autoincrement())
-  totalPrice     Float
-  status         TransactionStatus   @default(WAITING_PAYMENT)
-  paymentProof   String?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+model TicketType {
+  id String @id @default(uuid())
 
-  // Relation
-  user           User                @relation(fields: [userId], references: [id])
-  userId         String
-  event          Event               @relation(fields: [eventId], references: [id])
-  eventId        Int
-  details        TransactionDetail[]
-}
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name String
+  description String
+  price Float @default(0)
+  quota Int
+  availableQuota Int
 
-model TransactionDetail {
-  id              Int          @id @default(autoincrement())
-  ticketQuantity  Int
-  pricePerTicket  Float
-  transaction     Transaction  @relation(fields: [transactionId], references: [id])
-  transactionId   Int
-}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-model Notification {
-  id         Int               @id @default(autoincrement())
-  title      String
-  message    String
-  type       NotificationType
-  isRead     Boolean           @default(false)
-  createdAt  DateTime          @default(now())
+  transactionItem TransactionItem[]
 
-  user       User              @relation(fields: [userId], references: [id])
-  userId     String
-}
-
-model PointsHistory {
-  id          Int        @id @default(autoincrement())
-  points      Int
-  source      String
-  expiresAt   DateTime
-  createdAt   DateTime   @default(now())
-
-  user        User       @relation(fields: [userId], references: [id])
-  userId      String
+  @@map("ticketTypes")
 }
 
 model Voucher {
-  id              Int        @id @default(autoincrement())
-  code            String     @unique
-  discountAmount  Float
-  isUsed          Boolean    @default(false)
-  expiresAt       DateTime
-  createdAt       DateTime   @default(now())
+  id String @id @default(uuid())
 
-  user            User       @relation(fields: [userId], references: [id])
-  userId          String
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  code String @unique
+  discountAmount Float @default(0)
+  maxUsage Int?
+  usedCount Int @default(0)
+  expiredAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transaction Transaction[]
+
+  @@map("vouchers")
 }
 
-model RegisterToken {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
+model Transaction {
+  id String @id @default(uuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId String
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  price Float @default(0)
+  subtotalPrice Float @default(0)
+  pointsUsed Int @default(0)
+  couponId String?
+  coupon Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  voucherId String?
+  voucher Voucher? @relation(fields: [voucherId], references: [id], onDelete: SetNull)
+  discountAmount Float @default(0)
+  totalPrice Float @default(0)
+  paymentProof String?
+  paymentDeadline DateTime?
+  confirmationDeadline DateTime?
+  status TransactionStatus @default(WAITING_PAYMENT)
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  point Point[]
+  transactionItem TransactionItem[]
+  review Review[]
+
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id String @id @default(uuid())
+
+  transactionId String
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  ticketTypeId String?
+  ticketType TicketType? @relation(fields: [ticketTypeId], references: [id], onDelete: SetNull)
+  quantity Int
+  price Float @default(0)
+  subtotal Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("transactionItems")
+}
+
+model Review {
+  id String @id @default(uuid())
+
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  eventId String?
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  transactionId String
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)  
+  rating Int
+  comment String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("reviews")
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  title String
+  message String
+  type NotificationType
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
 }
