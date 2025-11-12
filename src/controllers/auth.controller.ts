@@ -5,6 +5,7 @@ import {
   login,
 } from "../services/auth.service";
 import { Token } from "../middlewares/auth.middleware";
+import { nanoid } from "nanoid";
 
 export async function verificationLinkController(
   req: Request,
