@@ -22,7 +22,8 @@ enum PointType {
 enum EventStatus {
   DRAFT
   PUBLISHED
-  CANCELED
+  CANCEL
+  FINISHED
 }
 
 enum TransactionStatus {
@@ -44,17 +45,19 @@ model RegisterToken {
   id String @id @default(uuid())
   token String @unique
   createdAt DateTime @default(now())
+  
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
 }
 
 model User {
   id String @id @default(uuid())
-
   firstname String
   lastname String
   email String @unique
   password String
   role Role @default(CUSTOMER)
-  refferalCode String @unique
+  refferalCode String? @unique
   refferedByUserId String?
   refferedByUser User? @relation("UserRefferal", fields: [refferedByUserId], references: [id], onDelete: SetNull)
   profilePicture String?
@@ -70,6 +73,7 @@ model User {
   transaction Transaction[]
   review Review[]
   notification Notification[]
+  registerTokens RegisterToken[]
 
   @@map("users")
 }
@@ -243,7 +247,6 @@ model Review {
 
 model Notification {
   id String @id @default(uuid())
-
   userId String?
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
   title String
