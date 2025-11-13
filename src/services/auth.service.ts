@@ -10,6 +10,7 @@ import { getRegisterToken } from "./registerToken.service";
 import { BASE_WEB_URL, SECRET_KEY } from "../config/env.config";
 import { createCustomError } from "../utils/customError";
 import { transporter } from "../helpers/nodemailer";
+import { nanoid } from "nanoid";
 
 export async function getUserByEmail(email: string) {
   try {
@@ -73,7 +74,7 @@ export async function verificationLinkService(email: string) {
 
 export async function verifyService(
   token: string,
-  params: Prisma.UserCreateInput
+  params: Prisma.UserCreateInput & { referralCodeUsed?: string }
 ) {
   try {
     const tokenExist = await getRegisterToken(token);
@@ -85,18 +86,58 @@ export async function verifyService(
     const salt = genSaltSync(10);
     const hashedPassword = hashSync(params.password, salt);
 
+    const newReferralCode: string = nanoid(8).toUpperCase();
+
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.user.create({
+      const newUser = await tx.user.create({
         data: {
-          ...params,
+          firstname: params.firstname,
+          lastname: params.lastname,
+          email: params.email,
           password: hashedPassword,
+          refferalCode: newReferralCode,
+          role: params.role ?? "CUSTOMER",
+          isVerified: true,
         },
       });
 
+      if (params.referralCodeUsed) {
+        const referrer = await tx.user.findUnique({
+          where: { refferalCode: params.referralCodeUsed },
+        });
+
+        if (referrer) {
+          const points = 10000;
+          const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
+          await tx.point.create({
+            data: {
+              amount: points,
+              pointType: "EARNED",
+              description: "Referral Bonus",
+              expiredAt: expiresAt,
+              userId: referrer.id,
+            },
+          });
+
+          const voucherCode = `DISC-${Math.random()
+            .toString(36)
+            .substring(2, 8)
+            .toUpperCase()}`;
+
+          await tx.coupon.create({
+            data: {
+              userId: newUser.id,
+              code: voucherCode,
+              discountAmount: 5000,
+              expiredAt: expiresAt,
+            },
+          });
+        }
+      }
+
       await tx.registerToken.delete({
-        where: {
-          token,
-        },
+        where: { token },
       });
     });
   } catch (err) {
@@ -116,6 +157,7 @@ export async function login(email: string, password: string) {
       throw createCustomError(401, "Invalid email or password");
 
     const payload = {
+      id: user.id,
       email: user.email,
       firstname: user.firstname,
       lastname: user.lastname,

@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from "express";
-import { verify } from "jsonwebtoken";
+import { verify, JwtPayload } from "jsonwebtoken";
 
 import { createCustomError } from "../utils/customError";
 import { SECRET_KEY } from "../config/env.config";
 
 export interface Token {
+  id: string;
   email: string;
   firstname: string;
   lastname: string;
