@@ -6,6 +6,8 @@ import { PORT } from "./config/env.config";
 import errorMiddleware from "./middlewares/error.middleware";
 import router from "./routers";
 import profileRouter from "./routers"
+import dashboardRoutes from './routers/dashboard.route';
+import adminRoutes from './routers/admin.route';
 
 const app = express();
 
@@ -15,6 +17,8 @@ app.use(express.json());
 
 app.use("/api", router);
 app.use("/api/profile", profileRouter)
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use(errorMiddleware);
 

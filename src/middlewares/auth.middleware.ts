@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { verify, JwtPayload } from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 
 import { createCustomError } from "../utils/customError";
 import { SECRET_KEY } from "../config/env.config";
@@ -55,4 +56,48 @@ export function roleGuard(allowedRoles: string[]) {
       next(err);
     }
   };
+}
+
+export function authenticateToken(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+      res.status(401).json({ error: 'Access token required' });
+      return;
+    }
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET is not defined');
+    }
+
+    const decoded = jwt.verify(token, secret) as Token;
+
+    // Attach user to request
+    req.user = {
+      id: decoded.id || decoded.email, // Fallback to email if id not present
+      email: decoded.email,
+      firstname: decoded.firstname,
+      lastname: decoded.lastname,
+      role: decoded.role,
+    };
+
+    next();
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: 'Token expired' });
+      return;
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      res.status(403).json({ error: 'Invalid token' });
+      return;
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
 }
