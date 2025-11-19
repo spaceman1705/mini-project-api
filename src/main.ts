@@ -5,9 +5,10 @@ import helmet from "helmet";
 import { PORT } from "./config/env.config";
 import errorMiddleware from "./middlewares/error.middleware";
 import router from "./routers";
-import profileRouter from "./routers"
-import dashboardRoutes from './routers/dashboard.route';
-import adminRoutes from './routers/admin.route';
+import eventRouter from "./routers/event.router";
+import profileRouter from "./routers";
+import dashboardRoutes from "./routers/dashboard.route";
+import adminRoutes from "./routers/admin.route";
 
 const app = express();
 
@@ -16,9 +17,10 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api", router);
-app.use("/api/profile", profileRouter)
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/admin', adminRoutes);
+app.use("/api/event", eventRouter);
+app.use("/api/profile", profileRouter);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use(errorMiddleware);
 
