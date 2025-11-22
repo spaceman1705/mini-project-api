@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import authRouter from "./auth.route";
-import { eventRouter } from "./event.router";
+import eventRouter from "./event.router";
 
 const router = Router();
 

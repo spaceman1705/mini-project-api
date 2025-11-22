@@ -17,11 +17,11 @@ export async function createEvent(
     price: number;
     availableSeats: number;
     slug: string;
-    status?: "DRAFT" | "PUBLISHED" | "CANCEL" | "FINISHED";
+    status?: "DRAFT" | "PUBLISHED" | "CANCELED" | "FINISHED";
   }
 ) {
   const uploaded = imgFile ? await cloudinaryUpload(imgFile) : null;
-  const uploadURL = uploaded?.secure_url;
+  const uploadUrl = uploaded?.secure_url;
 
   try {
     const user = await getUserByEmail(email);
@@ -46,14 +46,14 @@ export async function createEvent(
         availableSeats: params.availableSeats,
         slug: params.slug,
         status: params.status ?? "DRAFT",
-        bannerImg: uploadURL,
+        bannerImg: uploadUrl,
         organizerId: user.id,
       },
     });
 
     return event;
   } catch (err) {
-    if (uploadURL) await cloudinaryRemove(uploadURL);
+    if (uploadUrl) await cloudinaryRemove(uploadUrl);
     throw err;
   }
 }
@@ -87,7 +87,7 @@ export async function updateEvent(id: string, params: Prisma.EventUpdateInput) {
 
 export async function getEventBySlug(slug: string) {
   try {
-    const event = prisma.event.findUnique({
+    const event = await prisma.event.findUnique({
       where: { slug },
       include: {
         organizer: {
@@ -119,6 +119,8 @@ export async function getEventBySlug(slug: string) {
     if (!event) {
       throw createCustomError(404, "Event not found");
     }
+
+    return event;
   } catch (err) {
     throw err;
   }
@@ -199,11 +201,34 @@ export async function getAllEvents(
   }
 }
 
+export async function getEventCategories() {
+  try {
+    const rows = await prisma.event.findMany({
+      select: {
+        category: true,
+      },
+      distinct: ["category"],
+      where: {
+        status: "PUBLISHED",
+      },
+    });
+
+    const categories = rows
+      .map((row) => row.category)
+      .filter((c) => !!c && c.trim().length > 0)
+      .sort((a, b) => a.localeCompare(b));
+
+    return categories;
+  } catch (err) {
+    throw err;
+  }
+}
+
 export async function getMyEvents(
   email: string,
   page = 1,
   pageSize = 12,
-  status?: "DRAFT" | "PUBLISHED" | "CANCEL" | "FINISHED"
+  status?: "DRAFT" | "PUBLISHED" | "CANCELED" | "FINISHED"
 ) {
   try {
     const user = await getUserByEmail(email);
@@ -258,7 +283,7 @@ export async function setEventStatus(
     email: string;
     role: "ADMIN" | "ORGANIZER";
   },
-  status: "DRAFT" | "PUBLISHED" | "CANCEL" | "FINISHED"
+  status: "DRAFT" | "PUBLISHED" | "CANCELED" | "FINISHED"
 ) {
   try {
     if (user.role !== "ADMIN") {

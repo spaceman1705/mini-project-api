@@ -4,6 +4,7 @@ import {
   updateEventController,
   getEventBySlugController,
   getAllEventsController,
+  getEventCategoriesController,
   getMyEventsController,
   publihsEventController,
   cancelEventController,
@@ -36,8 +37,9 @@ eventRouter.patch(
   validateRequest(eventCreateSchema),
   updateEventController
 );
-eventRouter.get("/:slug", getEventBySlugController);
 eventRouter.get("/", getAllEventsController);
+eventRouter.get("/categories", getEventCategoriesController);
+eventRouter.get("/:slug", getEventBySlugController);
 eventRouter.get(
   "/me",
   authMiddleware,

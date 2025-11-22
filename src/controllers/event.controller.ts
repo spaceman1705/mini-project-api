@@ -5,6 +5,7 @@ import {
   createVoucher,
   getAllEvents,
   getEventBySlug,
+  getEventCategories,
   getMyEvents,
   setEventStatus,
   updateEvent,
@@ -12,6 +13,8 @@ import {
 import { Prisma } from "@prisma/client";
 import { Token } from "../middlewares/auth.middleware";
 import { toSlug } from "../lib/slug";
+import { success } from "zod";
+import { tr } from "zod/v4/locales";
 
 export async function createEventController(
   req: Request,
@@ -220,6 +223,23 @@ export async function getAllEventsController(
   }
 }
 
+export async function getEventCategoriesController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const categories = await getEventCategories();
+
+    res.json({
+      message: "OK",
+      data: categories,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getMyEventsController(
   req: Request,
   res: Response,
@@ -289,7 +309,7 @@ export async function cancelEventController(
         email: user.email,
         role: user.role as any,
       },
-      "CANCEL"
+      "CANCELED"
     );
 
     res.json({

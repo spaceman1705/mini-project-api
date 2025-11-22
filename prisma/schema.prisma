@@ -22,7 +22,7 @@ enum PointType {
 enum EventStatus {
   DRAFT
   PUBLISHED
-  CANCEL
+  CANCELED
   FINISHED
 }
 
