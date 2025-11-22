@@ -43,16 +43,26 @@ export function authMiddleware(
 
 export function roleGuard(allowedRoles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
+    console.log("🟡 roleGuard executing for roles:", allowedRoles);
+    console.log("🟡 User role:", req.user?.role);
+    
     try {
       const user = req.user;
 
-      if (!user) throw createCustomError(401, "invalid token");
+      if (!user) {
+        console.log("❌ No user in request");
+        throw createCustomError(401, "invalid token");
+      }
 
-      if (!allowedRoles.includes(user?.role))
+      if (!allowedRoles.includes(user?.role)) {
+        console.log("❌ User role not in allowed roles");
         throw createCustomError(401, "Insufficient permissions");
+      }
 
+      console.log("✅ Role guard passed");
       next();
     } catch (err) {
+      console.error("❌ Role guard error:", err);
       next(err);
     }
   };
@@ -63,33 +73,35 @@ export function authenticateToken(
   res: Response,
   next: NextFunction
 ): void {
+  console.log("🟢 authenticateToken executing...");
+  
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    console.log("Auth header exists:", !!authHeader);
+    
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
+      console.log("❌ No token provided");
       res.status(401).json({ error: 'Access token required' });
       return;
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
-    }
+    const decoded = jwt.verify(token, SECRET_KEY) as Token;
 
-    const decoded = jwt.verify(token, secret) as Token;
-
-    // Attach user to request
     req.user = {
-      id: decoded.id || decoded.email, // Fallback to email if id not present
+      id: decoded.id || decoded.email,
       email: decoded.email,
       firstname: decoded.firstname,
       lastname: decoded.lastname,
       role: decoded.role,
     };
 
+    console.log("✅ Token verified, user:", req.user.email, "role:", req.user.role);
     next();
   } catch (error) {
+    console.error("❌ authenticateToken error:", error);
+    
     if (error instanceof jwt.TokenExpiredError) {
       res.status(401).json({ error: 'Token expired' });
       return;

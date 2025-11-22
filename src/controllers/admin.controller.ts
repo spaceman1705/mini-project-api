@@ -1,35 +1,24 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import {
+  // Event Services
+  getAllEventsService,
+  getEventByIdService,
+  approveEventService,
+  rejectEventService,
+  deleteEventService,
+  // User Services
+  getAllUsersService,
+  updateUserRoleService,
+  deleteUserService,
+  // Transaction Services
+  getAllTransactionsService,
+  updateTransactionStatusService
+} from '../services/admin.service';
 
-const prisma = new PrismaClient();
-
-//EVENT MANAGEMENT
-
+//EVENT CONTROLLERS
 export async function getAllEvents(req: Request, res: Response) {
   try {
-    const events = await prisma.event.findMany({
-      include: {
-        organizer: {
-          select: {
-            id: true,
-            firstname: true,
-            lastname: true,
-            email: true
-          }
-        },
-        _count: {
-          select: {
-            transaction: true,
-            review: true,
-            ticketType: true,
-            voucher: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    const events = await getAllEventsService();
 
     res.json({
       message: "OK",
@@ -44,62 +33,19 @@ export async function getAllEvents(req: Request, res: Response) {
 export async function getEventById(req: Request, res: Response) {
   try {
     const { eventId } = req.params;
-
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        organizer: {
-          select: {
-            id: true,
-            firstname: true,
-            lastname: true,
-            email: true,
-            profilePicture: true
-          }
-        },
-        ticketType: true,
-        voucher: true,
-        transaction: {
-          include: {
-            user: {
-              select: {
-                firstname: true,
-                lastname: true,
-                email: true
-              }
-            },
-            transactionItem: true
-          }
-        },
-        review: {
-          include: {
-            user: {
-              select: {
-                firstname: true,
-                lastname: true
-              }
-            }
-          }
-        },
-        _count: {
-          select: {
-            transaction: true,
-            review: true
-          }
-        }
-      }
-    });
-
-    if (!event) {
-      return res.status(404).json({ error: "Event not found" });
-    }
+    const event = await getEventByIdService(eventId);
 
     res.json({
       message: "OK",
       data: event
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("getEventById error:", error);
+
+    if (error.message === 'EVENT_NOT_FOUND') {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -107,49 +53,23 @@ export async function getEventById(req: Request, res: Response) {
 export async function approveEvent(req: Request, res: Response) {
   try {
     const { eventId } = req.params;
-
-    const event = await prisma.event.findUnique({
-      where: { id: eventId }
-    });
-
-    if (!event) {
-      return res.status(404).json({ error: "Event not found" });
-    }
-
-    if (event.status !== 'DRAFT') {
-      return res.status(400).json({ error: "Only draft events can be approved" });
-    }
-
-    const updatedEvent = await prisma.event.update({
-      where: { id: eventId },
-      data: { status: 'PUBLISHED' },
-      include: {
-        organizer: {
-          select: {
-            firstname: true,
-            lastname: true,
-            email: true
-          }
-        }
-      }
-    });
-
-    // Send notification to organizer
-    await prisma.notification.create({
-      data: {
-        userId: event.organizerId,
-        title: "Event Approved",
-        message: `Your event "${event.title}" has been approved and is now published.`,
-        type: "SYSTEM"
-      }
-    });
+    const updatedEvent = await approveEventService(eventId);
 
     res.json({
       message: "Event approved successfully",
       data: updatedEvent
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("approveEvent error:", error);
+
+    if (error.message === 'EVENT_NOT_FOUND') {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    if (error.message === 'ONLY_DRAFT_CAN_BE_APPROVED') {
+      return res.status(400).json({ error: "Only draft events can be approved" });
+    }
+
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -157,45 +77,19 @@ export async function approveEvent(req: Request, res: Response) {
 export async function rejectEvent(req: Request, res: Response) {
   try {
     const { eventId } = req.params;
-
-    const event = await prisma.event.findUnique({
-      where: { id: eventId }
-    });
-
-    if (!event) {
-      return res.status(404).json({ error: "Event not found" });
-    }
-
-    const updatedEvent = await prisma.event.update({
-      where: { id: eventId },
-      data: { status: 'CANCEL' },
-      include: {
-        organizer: {
-          select: {
-            firstname: true,
-            lastname: true,
-            email: true
-          }
-        }
-      }
-    });
-
-    // Send notification to organizer
-    await prisma.notification.create({
-      data: {
-        userId: event.organizerId,
-        title: "Event Rejected",
-        message: `Your event "${event.title}" has been rejected. Please contact support for more information.`,
-        type: "SYSTEM"
-      }
-    });
+    const updatedEvent = await rejectEventService(eventId);
 
     res.json({
       message: "Event rejected",
       data: updatedEvent
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("rejectEvent error:", error);
+
+    if (error.message === 'EVENT_NOT_FOUND') {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -203,68 +97,37 @@ export async function rejectEvent(req: Request, res: Response) {
 export async function deleteEvent(req: Request, res: Response) {
   try {
     const { eventId } = req.params;
+    await deleteEventService(eventId);
 
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        _count: {
-          select: {
-            transaction: true
-          }
-        }
-      }
+    res.json({
+      message: "Event deleted successfully"
     });
+  } catch (error: any) {
+    console.error("deleteEvent error:", error);
 
-    if (!event) {
+    if (error.message === 'EVENT_NOT_FOUND') {
       return res.status(404).json({ error: "Event not found" });
     }
 
-    // Check if event has transactions
-    if (event._count.transaction > 0) {
+    if (error.message === 'HAS_TRANSACTIONS') {
       return res.status(400).json({ 
         error: "Cannot delete event with existing transactions. Cancel it instead." 
       });
     }
 
-    await prisma.event.delete({
-      where: { id: eventId }
-    });
-
-    res.json({
-      message: "Event deleted successfully"
-    });
-  } catch (error) {
-    console.error("deleteEvent error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
 
-//USER MANAGEMENT
-
+//USER CONTROLLERS
 export async function getAllUsers(req: Request, res: Response) {
+  console.log("🔵 getAllUsers endpoint HIT!");
+  console.log("User from token:", req.user);
+
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        firstname: true,
-        lastname: true,
-        email: true,
-        role: true,
-        isVerified: true,
-        profilePicture: true,
-        createdAt: true,
-        _count: {
-          select: {
-            event: true,
-            transaction: true,
-            review: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    console.log("🟢 Fetching users from database...");
+    const users = await getAllUsersService();
+    console.log("✅ Users fetched successfully:", users.length);
 
     res.json({
       message: "OK",
@@ -281,21 +144,19 @@ export async function updateUserRole(req: Request, res: Response) {
     const { userId } = req.params;
     const { role } = req.body;
 
-    if (!['ADMIN', 'ORGANIZER', 'CUSTOMER'].includes(role)) {
-      return res.status(400).json({ error: "Invalid role" });
-    }
-
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { role }
-    });
+    const user = await updateUserRoleService(userId, role);
 
     res.json({
       message: "User role updated successfully",
       data: user
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("updateUserRole error:", error);
+
+    if (error.message === 'INVALID_ROLE') {
+      return res.status(400).json({ error: "Invalid role" });
+    }
+
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -303,55 +164,32 @@ export async function updateUserRole(req: Request, res: Response) {
 export async function deleteUser(req: Request, res: Response) {
   try {
     const { userId } = req.params;
+    const currentUserId = req.user?.id;
 
-    // Cannot delete yourself
-    if (!req.user || userId === req.user.id) {
-      return res.status(400).json({ error: "Cannot delete your own account" });
+    if (!currentUserId) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
-    await prisma.user.delete({
-      where: { id: userId }
-    });
+    await deleteUserService(userId, currentUserId);
 
     res.json({
       message: "User deleted successfully"
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("deleteUser error:", error);
+
+    if (error.message === 'CANNOT_DELETE_SELF') {
+      return res.status(400).json({ error: "Cannot delete your own account" });
+    }
+
     res.status(500).json({ error: "Internal server error" });
   }
 }
 
-//TRANSACTION MANAGEMENT
-
+//TRANSACTION CONTROLLERS
 export async function getAllTransactions(req: Request, res: Response) {
   try {
-    const transactions = await prisma.transaction.findMany({
-      include: {
-        user: {
-          select: {
-            firstname: true,
-            lastname: true,
-            email: true
-          }
-        },
-        event: {
-          select: {
-            title: true,
-            slug: true,
-            category: true
-          }
-        },
-        transactionItem: {
-          include: {
-            ticketType: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    const transactions = await getAllTransactionsService();
 
     res.json({
       message: "OK",
@@ -368,40 +206,19 @@ export async function updateTransactionStatus(req: Request, res: Response) {
     const { transactionId } = req.params;
     const { status } = req.body;
 
-    const validStatuses = [
-      'WAITING_PAYMENT',
-      'WAITING_CONFIRMATION',
-      'DONE',
-      'REJECTED',
-      'EXPIRED',
-      'CANCELED'
-    ];
-
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
-    }
-
-    const transaction = await prisma.transaction.update({
-      where: { id: transactionId },
-      data: { status }
-    });
-
-    // Send notification to user
-    await prisma.notification.create({
-      data: {
-        userId: transaction.userId,
-        title: "Transaction Status Updated",
-        message: `Your transaction status has been updated to ${status}`,
-        type: "TRANSACTION"
-      }
-    });
+    const transaction = await updateTransactionStatusService(transactionId, status);
 
     res.json({
       message: "Transaction status updated successfully",
       data: transaction
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("updateTransactionStatus error:", error);
+
+    if (error.message === 'INVALID_STATUS') {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
     res.status(500).json({ error: "Internal server error" });
   }
 }

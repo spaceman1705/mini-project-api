@@ -18,7 +18,10 @@ app.use(express.json());
 app.use("/api", router);
 app.use("/api/profile", profileRouter)
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', (req, res, next) => {
+  console.log("🔵 /api/admin/* request:", req.method, req.url);
+  next();
+}, adminRoutes);
 
 app.use(errorMiddleware);
 

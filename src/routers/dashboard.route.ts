@@ -5,6 +5,7 @@ import {
   getCustomerUpcomingEvents,
   getOrganizerStats,
   getOrganizerEvents,
+  getOrganizerWeeklySales,
   getAdminStats,
   getAdminRecentUsers,
   getAdminPendingEvents,
@@ -42,6 +43,12 @@ router.get(
   '/organizer/events',
   roleGuard(['ORGANIZER']),
   getOrganizerEvents
+);
+
+router.get(
+  '/organizer/weekly-sales',
+  roleGuard(['ORGANIZER']),
+  getOrganizerWeeklySales
 );
 
 //ADMIN ROUTES
