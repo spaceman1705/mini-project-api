@@ -14,24 +14,28 @@ import {
   getAllTransactions,
   updateTransactionStatus
 } from '../controllers/admin.controller';
-import { authenticateToken } from '../middlewares/auth.middleware';
-import { roleGuard } from '../middlewares/role.middleware';
+import { authenticateToken, roleGuard } from '../middlewares/auth.middleware';
+
 
 const router = Router();
 
+// Middleware global untuk semua route admin
 router.use(authenticateToken);
 router.use(roleGuard(['ADMIN']));
 
+// Event Management
 router.get('/events', getAllEvents);
 router.get('/events/:eventId', getEventById);
 router.patch('/events/:eventId/approve', approveEvent);
 router.patch('/events/:eventId/reject', rejectEvent);
 router.delete('/events/:eventId', deleteEvent);
 
+// User Management
 router.get('/users', getAllUsers);
-router.patch('/users/:userId/role', updateUserRole);
-router.delete('/users/:userId', deleteUser);
+router.patch('/users/:id/role', updateUserRole);
+router.delete('/users/:id', deleteUser);
 
+// Transaction Management
 router.get('/transactions', getAllTransactions);
 router.patch('/transactions/:transactionId/status', updateTransactionStatus);
 
