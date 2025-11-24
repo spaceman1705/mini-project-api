@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -11,21 +11,21 @@ export async function getAllEventsService() {
           id: true,
           firstname: true,
           lastname: true,
-          email: true
-        }
+          email: true,
+        },
       },
       _count: {
         select: {
           transaction: true,
           review: true,
           ticketType: true,
-          voucher: true
-        }
-      }
+          voucher: true,
+        },
+      },
     },
     orderBy: {
-      createdAt: 'desc'
-    }
+      createdAt: "desc",
+    },
   });
 }
 
@@ -39,8 +39,8 @@ export async function getEventByIdService(eventId: string) {
           firstname: true,
           lastname: true,
           email: true,
-          profilePicture: true
-        }
+          profilePicture: true,
+        },
       },
       ticketType: true,
       voucher: true,
@@ -50,33 +50,33 @@ export async function getEventByIdService(eventId: string) {
             select: {
               firstname: true,
               lastname: true,
-              email: true
-            }
+              email: true,
+            },
           },
-          transactionItem: true
-        }
+          transactionItem: true,
+        },
       },
       review: {
         include: {
           user: {
             select: {
               firstname: true,
-              lastname: true
-            }
-          }
-        }
+              lastname: true,
+            },
+          },
+        },
       },
       _count: {
         select: {
           transaction: true,
-          review: true
-        }
-      }
-    }
+          review: true,
+        },
+      },
+    },
   });
 
   if (!event) {
-    throw new Error('EVENT_NOT_FOUND');
+    throw new Error("EVENT_NOT_FOUND");
   }
 
   return event;
@@ -84,29 +84,29 @@ export async function getEventByIdService(eventId: string) {
 
 export async function approveEventService(eventId: string) {
   const event = await prisma.event.findUnique({
-    where: { id: eventId }
+    where: { id: eventId },
   });
 
   if (!event) {
-    throw new Error('EVENT_NOT_FOUND');
+    throw new Error("EVENT_NOT_FOUND");
   }
 
-  if (event.status !== 'DRAFT') {
-    throw new Error('ONLY_DRAFT_CAN_BE_APPROVED');
+  if (event.status !== "DRAFT") {
+    throw new Error("ONLY_DRAFT_CAN_BE_APPROVED");
   }
 
   const updatedEvent = await prisma.event.update({
     where: { id: eventId },
-    data: { status: 'PUBLISHED' },
+    data: { status: "PUBLISHED" },
     include: {
       organizer: {
         select: {
           firstname: true,
           lastname: true,
-          email: true
-        }
-      }
-    }
+          email: true,
+        },
+      },
+    },
   });
 
   // Send notification to organizer
@@ -115,8 +115,8 @@ export async function approveEventService(eventId: string) {
       userId: event.organizerId,
       title: "Event Approved",
       message: `Your event "${event.title}" has been approved and is now published.`,
-      type: "SYSTEM"
-    }
+      type: "SYSTEM",
+    },
   });
 
   return updatedEvent;
@@ -124,25 +124,25 @@ export async function approveEventService(eventId: string) {
 
 export async function rejectEventService(eventId: string) {
   const event = await prisma.event.findUnique({
-    where: { id: eventId }
+    where: { id: eventId },
   });
 
   if (!event) {
-    throw new Error('EVENT_NOT_FOUND');
+    throw new Error("EVENT_NOT_FOUND");
   }
 
   const updatedEvent = await prisma.event.update({
     where: { id: eventId },
-    data: { status: 'CANCEL' },
+    data: { status: "CANCELED" },
     include: {
       organizer: {
         select: {
           firstname: true,
           lastname: true,
-          email: true
-        }
-      }
-    }
+          email: true,
+        },
+      },
+    },
   });
 
   // Send notification to organizer
@@ -151,8 +151,8 @@ export async function rejectEventService(eventId: string) {
       userId: event.organizerId,
       title: "Event Rejected",
       message: `Your event "${event.title}" has been rejected. Please contact support for more information.`,
-      type: "SYSTEM"
-    }
+      type: "SYSTEM",
+    },
   });
 
   return updatedEvent;
@@ -164,23 +164,23 @@ export async function deleteEventService(eventId: string) {
     include: {
       _count: {
         select: {
-          transaction: true
-        }
-      }
-    }
+          transaction: true,
+        },
+      },
+    },
   });
 
   if (!event) {
-    throw new Error('EVENT_NOT_FOUND');
+    throw new Error("EVENT_NOT_FOUND");
   }
 
   // Check if event has transactions
   if (event._count.transaction > 0) {
-    throw new Error('HAS_TRANSACTIONS');
+    throw new Error("HAS_TRANSACTIONS");
   }
 
   await prisma.event.delete({
-    where: { id: eventId }
+    where: { id: eventId },
   });
 
   return { id: eventId };
@@ -203,43 +203,43 @@ export async function getAllUsersService() {
           event: true,
           transaction: true,
           review: true,
-        }
-      }
+        },
+      },
     },
   });
 
   // Map to match frontend expectations
-  return users.map(user => ({
+  return users.map((user) => ({
     ...user,
     _count: {
       event: user._count.event,
       transaction: user._count.transaction,
       review: user._count.review,
-    }
+    },
   }));
 }
 
 export async function updateUserRoleService(userId: string, role: string) {
-  const validRoles = ['ADMIN', 'ORGANIZER', 'CUSTOMER'];
-  
+  const validRoles = ["ADMIN", "ORGANIZER", "CUSTOMER"];
+
   if (!validRoles.includes(role)) {
-    throw new Error('INVALID_ROLE');
+    throw new Error("INVALID_ROLE");
   }
 
   return await prisma.user.update({
     where: { id: userId },
-    data: { role: role as any }
+    data: { role: role as any },
   });
 }
 
 export async function deleteUserService(userId: string, currentUserId: string) {
   // Cannot delete yourself
   if (userId === currentUserId) {
-    throw new Error('CANNOT_DELETE_SELF');
+    throw new Error("CANNOT_DELETE_SELF");
   }
 
   await prisma.user.delete({
-    where: { id: userId }
+    where: { id: userId },
   });
 
   return { id: userId };
@@ -253,45 +253,48 @@ export async function getAllTransactionsService() {
         select: {
           firstname: true,
           lastname: true,
-          email: true
-        }
+          email: true,
+        },
       },
       event: {
         select: {
           title: true,
           slug: true,
-          category: true
-        }
+          category: true,
+        },
       },
       transactionItem: {
         include: {
-          ticketType: true
-        }
-      }
+          ticketType: true,
+        },
+      },
     },
     orderBy: {
-      createdAt: 'desc'
-    }
+      createdAt: "desc",
+    },
   });
 }
 
-export async function updateTransactionStatusService(transactionId: string, status: string) {
+export async function updateTransactionStatusService(
+  transactionId: string,
+  status: string
+) {
   const validStatuses = [
-    'WAITING_PAYMENT',
-    'WAITING_CONFIRMATION',
-    'DONE',
-    'REJECTED',
-    'EXPIRED',
-    'CANCELED'
+    "WAITING_PAYMENT",
+    "WAITING_CONFIRMATION",
+    "DONE",
+    "REJECTED",
+    "EXPIRED",
+    "CANCELED",
   ];
 
   if (!validStatuses.includes(status)) {
-    throw new Error('INVALID_STATUS');
+    throw new Error("INVALID_STATUS");
   }
 
   const transaction = await prisma.transaction.update({
     where: { id: transactionId },
-    data: { status: status as any }
+    data: { status: status as any },
   });
 
   // Send notification to user
@@ -300,8 +303,8 @@ export async function updateTransactionStatusService(transactionId: string, stat
       userId: transaction.userId,
       title: "Transaction Status Updated",
       message: `Your transaction status has been updated to ${status}`,
-      type: "TRANSACTION"
-    }
+      type: "TRANSACTION",
+    },
   });
 
   return transaction;
