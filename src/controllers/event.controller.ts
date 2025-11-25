@@ -22,22 +22,34 @@ export async function createEventController(
   next: NextFunction
 ) {
   try {
+    console.log("=== Create Event Request ===");
+    console.log("Body (before parse):", req.body);
+    console.log("File:", req.file);
+
     const user = req.user as Token;
     const body = req.body;
     const file = req.file as Express.Multer.File | undefined;
 
-    const slug = toSlug(body.title);
+    const parsedBody = {
+      ...body,
+      price: parseFloat(body.price),
+      availableSeats: parseInt(body.availableSeats),
+    };
+
+    console.log("Body (after parse):", parsedBody);
+
+    const slug = toSlug(parsedBody.title);
 
     const data = await createEvent(user.email, file, {
-      title: body.title,
-      description: body.description,
-      category: body.category,
-      location: body.location,
-      startDate: body.startDate,
-      endDate: body.endDate,
-      price: Number(body.price),
-      availableSeats: Number(body.availableSeats),
-      status: body.status,
+      title: parsedBody.title,
+      description: parsedBody.description,
+      category: parsedBody.category,
+      location: parsedBody.location,
+      startDate: parsedBody.startDate,
+      endDate: parsedBody.endDate,
+      price: parsedBody.price,
+      availableSeats: parsedBody.availableSeats,
+      status: parsedBody.status,
       slug,
     });
 

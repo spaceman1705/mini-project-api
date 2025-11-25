@@ -8,6 +8,9 @@ export function validateRequest(schema: ZodSchema) {
         body: req.body,
         file: req.file,
       });
+      console.log("=== Validation ===");
+      console.log("Body:", req.body);
+      console.log("File:", req.file);
       next();
     } catch (err) {
       if (err instanceof z.ZodError) {

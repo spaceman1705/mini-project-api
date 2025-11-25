@@ -8,9 +8,9 @@ export const eventBody = z.object({
   location: z.string().min(3, "Location must be at least 3 characters"),
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
-  price: z.number().min(0),
-  availableSeats: z.number().int().min(0),
-  status: z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]).optional(),
+  price: z.coerce.number().min(0),
+  availableSeats: z.coerce.number().int().min(0),
+  status: z.enum(["DRAFT", "PUBLISHED", "CANCELLED", "FINISHED"]).optional(),
 });
 
 export const eventCreateSchema = z.object({
