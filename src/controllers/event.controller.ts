@@ -7,14 +7,13 @@ import {
   getEventBySlug,
   getEventCategories,
   getMyEvents,
+  getMyEventsAdvancedService,
   setEventStatus,
   updateEvent,
 } from "../services/event.service";
 import { Prisma } from "@prisma/client";
 import { Token } from "../middlewares/auth.middleware";
 import { toSlug } from "../lib/slug";
-import { success } from "zod";
-import { tr } from "zod/v4/locales";
 
 export async function createEventController(
   req: Request,
@@ -106,6 +105,7 @@ export async function getAllEventsController(
       maxPrice,
       sort,
     } = req.query;
+
     const pageNum = page ? Number(page) : 1;
     const pageSizeNum = pageSize ? Number(pageSize) : 12;
 
@@ -114,26 +114,12 @@ export async function getAllEventsController(
     if (q) {
       const qStr = String(q);
       filter.OR = [
-        {
-          title: {
-            contains: qStr,
-            mode: "insensitive",
-          },
-        },
-        {
-          description: {
-            contains: qStr,
-            mode: "insensitive",
-          },
-        },
-        {
-          location: {
-            contains: qStr,
-            mode: "insensitive",
-          },
-        },
+        { title: { contains: qStr, mode: "insensitive" } },
+        { description: { contains: qStr, mode: "insensitive" } },
+        { location: { contains: qStr, mode: "insensitive" } },
       ];
     }
+
     if (title) {
       filter.title = String(title);
     }
@@ -179,7 +165,6 @@ export async function getAllEventsController(
       };
     } else if (date === "weekend") {
       const day = now.getDay();
-
       const startOfSaturday = new Date(startOfToday);
       startOfSaturday.setDate(startOfSaturday.getDate() + ((6 - day + 7) % 7));
       const endOfSunday = new Date(startOfSaturday);
@@ -248,6 +233,7 @@ export async function getMyEventsController(
   try {
     const user = req.user as Token;
     const { page, pageSize, status } = req.query;
+
     const pageNum = page ? Number(page) : 1;
     const pageSizeNum = pageSize ? Number(pageSize) : 12;
 
@@ -365,6 +351,40 @@ export async function createVoucherController(
     const data = await createVoucher(id, payload);
 
     res.status(201).json({
+      message: "OK",
+      data,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getMyEventsAdvancedController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const user = req.user as Token;
+
+    const params = {
+      page: Number(req.query.page) || 1,
+      pageSize: Number(req.query.pageSize) || 12,
+      q: req.query.q as string,
+      category: req.query.category as string,
+      location: req.query.location as string,
+      date: req.query.date as any,
+      start: req.query.start as string,
+      end: req.query.end as string,
+      minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
+      maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
+      status: req.query.status as string,
+      sort: req.query.sort as any,
+    };
+
+    const data = await getMyEventsAdvancedService(user.id, params);
+
+    res.json({
       message: "OK",
       data,
     });

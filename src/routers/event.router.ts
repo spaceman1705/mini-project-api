@@ -10,6 +10,7 @@ import {
   cancelEventController,
   createTicketTypesController,
   createVoucherController,
+  getMyEventsAdvancedController,
 } from "../controllers/event.controller";
 import { authMiddleware, roleGuard } from "../middlewares/auth.middleware";
 import { uploader } from "../utils/uploader";
@@ -30,6 +31,7 @@ eventRouter.post(
   validateRequest(eventCreateSchema),
   createEventController
 );
+
 eventRouter.patch(
   "/:id",
   authMiddleware,
@@ -37,26 +39,38 @@ eventRouter.patch(
   validateRequest(eventCreateSchema),
   updateEventController
 );
+
 eventRouter.get("/", getAllEventsController);
 eventRouter.get("/categories", getEventCategoriesController);
+
 eventRouter.get(
   "/me",
   authMiddleware,
   roleGuard(["ADMIN", "ORGANIZER"]),
   getMyEventsController
 );
+
+eventRouter.get(
+  "/me/adv",
+  authMiddleware,
+  roleGuard(["ADMIN", "ORGANIZER"]),
+  getMyEventsAdvancedController
+);
+
 eventRouter.patch(
   "/:id/publish",
   authMiddleware,
   roleGuard(["ADMIN", "ORGANIZER"]),
   publihsEventController
 );
+
 eventRouter.patch(
   "/:id/cancel",
   authMiddleware,
   roleGuard(["ADMIN", "ORGANIZER"]),
   cancelEventController
 );
+
 eventRouter.post(
   "/:id/tickets",
   authMiddleware,
@@ -64,6 +78,7 @@ eventRouter.post(
   validateRequest(ticketTypeCreateSchema),
   createTicketTypesController
 );
+
 eventRouter.post(
   "/:id/vouchers",
   authMiddleware,
@@ -71,6 +86,7 @@ eventRouter.post(
   validateRequest(voucherCreateSchema),
   createVoucherController
 );
+
 eventRouter.get("/:slug", getEventBySlugController);
 
 export default eventRouter;

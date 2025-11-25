@@ -31,8 +31,9 @@ export async function createEvent(
     const start = new Date(params.startDate);
     const end = new Date(params.endDate);
 
-    if (end <= start)
+    if (end <= start) {
       throw createCustomError(400, "End date must be after start date");
+    }
 
     const event = await prisma.event.create({
       data: {
@@ -53,6 +54,7 @@ export async function createEvent(
 
     return event;
   } catch (err) {
+    // kalau gagal dan sudah upload ke Cloudinary → hapus
     if (uploadUrl) await cloudinaryRemove(uploadUrl);
     throw err;
   }
@@ -65,8 +67,9 @@ export async function updateEvent(id: string, params: Prisma.EventUpdateInput) {
       : undefined;
     const end = params.endDate ? new Date(params.endDate as any) : undefined;
 
-    if (start && end && end <= start)
+    if (start && end && end <= start) {
       throw createCustomError(400, "End date must be after start date");
+    }
 
     const event = await prisma.event.update({
       where: {
@@ -75,7 +78,7 @@ export async function updateEvent(id: string, params: Prisma.EventUpdateInput) {
       data: {
         ...params,
         ...(start ? { startDate: start } : {}),
-        ...(start ? { endDate: start } : {}),
+        ...(end ? { endDate: end } : {}),
       },
     });
 
@@ -136,26 +139,15 @@ export type PublishedSort =
 export async function getAllEvents(
   page = 1,
   pageSize = 12,
-  filter: Prisma.EventWhereInput,
+  filter: Prisma.EventWhereInput = {},
   sort: PublishedSort = "newest"
 ) {
   try {
-    if (filter.title) {
-      filter.title = {
-        contains: filter.title,
-        mode: "insensitive",
-      } as any;
-      filter.location = {
-        contains: filter.location,
-        mode: "insensitive",
-      } as any;
-      filter.category = {
-        contains: filter.category,
-        mode: "insensitive",
-      } as any;
-    }
-
-    const where: Prisma.EventWhereInput = { status: "PUBLISHED", ...filter };
+    // semua event public → PUBLISHED only
+    const where: Prisma.EventWhereInput = {
+      status: "PUBLISHED",
+      ...filter,
+    };
 
     const orderBy: Prisma.EventOrderByWithRelationInput =
       sort === "oldest"
@@ -164,13 +156,14 @@ export async function getAllEvents(
         ? { price: "asc" }
         : sort === "price_desc"
         ? { price: "desc" }
-        : { createdAt: "desc" };
+        : { createdAt: "desc" }; // "newest" / "popular" fallback
 
     const [items, total] = await Promise.all([
       prisma.event.findMany({
         where,
         orderBy,
         skip: (page - 1) * pageSize,
+        take: pageSize,
         select: {
           id: true,
           title: true,
@@ -259,7 +252,6 @@ export async function getMyEvents(
           bannerImg: true,
         },
       }),
-
       prisma.event.count({
         where,
       }),
@@ -412,4 +404,137 @@ export async function createVoucher(
   } catch (err) {
     throw err;
   }
+}
+
+export async function getMyEventsAdvancedService(
+  userId: string,
+  params: {
+    page: number;
+    pageSize: number;
+    q?: string;
+    category?: string;
+    location?: string;
+    date?: "today" | "weekend" | "month" | "upcoming";
+    start?: string;
+    end?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    status?: string;
+    sort?: "newest" | "oldest" | "price_asc" | "price_desc";
+  }
+) {
+  const {
+    page,
+    pageSize,
+    q,
+    category,
+    location,
+    date,
+    start,
+    end,
+    minPrice,
+    maxPrice,
+    status,
+    sort,
+  } = params;
+
+  const filter: Prisma.EventWhereInput = {
+    organizerId: userId,
+  };
+
+  if (status && status !== "ALL") filter.status = status as any;
+
+  if (q) {
+    filter.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+      { location: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  if (category) filter.category = category;
+  if (location) filter.location = location;
+
+  const now = new Date();
+
+  if (date === "today") {
+    const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endDay = new Date(startDay);
+    endDay.setDate(endDay.getDate() + 1);
+    filter.startDate = { gte: startDay, lt: endDay };
+  }
+
+  if (date === "weekend") {
+    const day = now.getDay();
+    const startSat = new Date(now);
+    startSat.setDate(now.getDate() + ((6 - day + 7) % 7));
+    const endSun = new Date(startSat);
+    endSun.setDate(startSat.getDate() + 2);
+    filter.startDate = { gte: startSat, lt: endSun };
+  }
+
+  if (date === "month") {
+    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    filter.startDate = { gte: startMonth, lt: endMonth };
+  }
+
+  if (date === "upcoming") {
+    filter.startDate = { gte: now };
+  }
+
+  if (start || end) {
+    filter.startDate = {
+      gte: start ? new Date(start) : undefined,
+      lte: end ? new Date(end) : undefined,
+    };
+  }
+
+  if (minPrice || maxPrice) {
+    filter.price = {
+      gte: minPrice ?? 0,
+      lte: maxPrice ?? Number.MAX_SAFE_INTEGER,
+    };
+  }
+
+  const orderBy: Prisma.EventOrderByWithRelationInput =
+    sort === "oldest"
+      ? { createdAt: "asc" }
+      : sort === "price_asc"
+      ? { price: "asc" }
+      : sort === "price_desc"
+      ? { price: "desc" }
+      : { createdAt: "desc" };
+
+  const [items, total] = await Promise.all([
+    prisma.event.findMany({
+      where: filter,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        price: true,
+        availableSeats: true,
+        bannerImg: true,
+        category: true,
+        location: true,
+        createdAt: true,
+      },
+    }),
+    prisma.event.count({ where: filter }),
+  ]);
+
+  return {
+    items,
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
+  };
 }
