@@ -4,6 +4,37 @@ import { createCustomError } from "../utils/customError";
 import { getUserByEmail } from "./auth.service";
 import { cloudinaryRemove, cloudinaryUpload } from "../utils/cloudnary";
 
+async function recomputeEventFromTickets(
+  tx: Prisma.TransactionClient,
+  eventId: string
+) {
+  const tickets = await tx.ticketType.findMany({
+    where: { eventId },
+    select: {
+      price: true,
+      quota: true,
+    },
+  });
+
+  if (!tickets.length) {
+    return;
+  }
+
+  const totalQuota = tickets.reduce((sum, t) => sum + t.quota, 0);
+  const minPrice = tickets.reduce(
+    (min, t) => (t.price < min ? t.price : min),
+    tickets[0].price
+  );
+
+  await tx.event.update({
+    where: { id: eventId },
+    data: {
+      availableSeats: totalQuota,
+      price: minPrice,
+    },
+  });
+}
+
 export async function createEvent(
   email: string,
   imgFile: Express.Multer.File | undefined,
@@ -34,21 +65,36 @@ export async function createEvent(
       throw createCustomError(400, "End date must be after start date");
     }
 
-    const event = await prisma.event.create({
-      data: {
-        title: params.title,
-        description: params.description,
-        category: params.category,
-        location: params.location,
-        startDate: start,
-        endDate: end,
-        price: params.price,
-        availableSeats: params.availableSeats,
-        slug: params.slug,
-        status: params.status ?? "DRAFT",
-        bannerImg: uploadUrl,
-        organizerId: user.id,
-      },
+    const event = await prisma.$transaction(async (tx) => {
+      const createdEvent = await tx.event.create({
+        data: {
+          title: params.title,
+          description: params.description,
+          category: params.category,
+          location: params.location,
+          startDate: start,
+          endDate: end,
+          price: params.price,
+          availableSeats: params.availableSeats,
+          slug: params.slug,
+          status: params.status ?? "DRAFT",
+          bannerImg: uploadUrl,
+          organizerId: user.id,
+        },
+      });
+
+      await tx.ticketType.create({
+        data: {
+          eventId: createdEvent.id,
+          name: "Regular",
+          description: "Regular ticket",
+          price: params.price,
+          quota: params.availableSeats,
+          availableQuota: params.availableSeats,
+        },
+      });
+
+      return createdEvent;
     });
 
     return event;
@@ -269,15 +315,53 @@ export async function addTicketTypes(
   }[]
 ) {
   try {
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      select: { id: true },
-    });
-
-    if (!event) throw createCustomError(404, "Event not found");
-
     return await prisma.$transaction(async (tx) => {
-      const created = await Promise.all(
+      const event = await tx.event.findUnique({
+        where: { id: eventId },
+        select: {
+          id: true,
+          availableSeats: true,
+          price: true,
+          ticketType: {
+            select: {
+              id: true,
+              name: true,
+              quota: true,
+              availableQuota: true,
+            },
+          },
+        },
+      });
+
+      if (!event) throw createCustomError(404, "Event not found");
+
+      if (items.some((i) => i.name.toLowerCase() === "regular")) {
+        throw createCustomError(
+          400,
+          "Regular ticket is created automatically and cannot be added manually"
+        );
+      }
+
+      const regular = event.ticketType.find(
+        (t) => t.name.toLowerCase() === "regular"
+      );
+
+      const currentNonRegularQuota = event.ticketType
+        .filter((t) => t.name.toLowerCase() !== "regular")
+        .reduce((sum, t) => sum + t.quota, 0);
+
+      const newItemsQuota = items.reduce((sum, i) => sum + i.quota, 0);
+
+      const newNonRegularQuota = currentNonRegularQuota + newItemsQuota;
+
+      if (newNonRegularQuota > event.availableSeats) {
+        throw createCustomError(
+          400,
+          "Total quota of special tickets exceeds event capacity"
+        );
+      }
+
+      await Promise.all(
         items.map((i) =>
           tx.ticketType.create({
             data: {
@@ -292,19 +376,161 @@ export async function addTicketTypes(
         )
       );
 
-      const total = await tx.ticketType.aggregate({
-        _sum: { quota: true },
+      const newRegularQuota = event.availableSeats - newNonRegularQuota;
+
+      if (regular) {
+        const alreadySold = regular.quota - regular.availableQuota;
+        if (newRegularQuota < alreadySold) {
+          throw createCustomError(
+            400,
+            `Cannot reduce Regular quota below already sold tickets (${alreadySold})`
+          );
+        }
+
+        await tx.ticketType.update({
+          where: { id: regular.id },
+          data: {
+            quota: newRegularQuota,
+            availableQuota: newRegularQuota - alreadySold,
+          },
+        });
+      } else {
+        await tx.ticketType.create({
+          data: {
+            eventId,
+            name: "Regular",
+            description: "Regular ticket",
+            price: event.price,
+            quota: newRegularQuota,
+            availableQuota: newRegularQuota,
+          },
+        });
+      }
+
+      await recomputeEventFromTickets(tx, eventId);
+
+      const allTickets = await tx.ticketType.findMany({
         where: { eventId },
+        orderBy: { name: "asc" },
       });
 
-      await tx.event.update({
-        where: { id: event.id },
-        data: {
-          availableSeats: total._sum.quota ?? 0,
+      return allTickets;
+    });
+  } catch (err) {
+    throw err;
+  }
+}
+
+export async function updateTicketType(
+  eventId: string,
+  ticketId: string,
+  params: {
+    name?: string;
+    description?: string;
+    price?: number;
+    quota?: number;
+  }
+) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const event = await tx.event.findUnique({
+        where: { id: eventId },
+        select: {
+          id: true,
+          ticketType: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              price: true,
+              quota: true,
+              availableQuota: true,
+            },
+          },
         },
       });
 
-      return created;
+      if (!event) {
+        throw createCustomError(404, "Event not found");
+      }
+
+      const ticket = event.ticketType.find((t) => t.id === ticketId);
+      if (!ticket) {
+        throw createCustomError(404, "Ticket type not found");
+      }
+
+      const sold = ticket.quota - ticket.availableQuota;
+      const newQuota = params.quota ?? ticket.quota;
+      if (newQuota < sold) {
+        throw createCustomError(
+          400,
+          `Cannot set quota below already sold tickets (${sold})`
+        );
+      }
+
+      await tx.ticketType.update({
+        where: { id: ticketId },
+        data: {
+          name: params.name ?? ticket.name,
+          description: params.description ?? ticket.description,
+          price: params.price ?? ticket.price,
+          quota: newQuota,
+          availableQuota: newQuota - sold,
+        },
+      });
+
+      await recomputeEventFromTickets(tx, eventId);
+
+      const allTickets = await tx.ticketType.findMany({
+        where: { eventId },
+        orderBy: { name: "asc" },
+      });
+
+      return allTickets;
+    });
+  } catch (err) {
+    throw err;
+  }
+}
+
+export async function deleteTicketType(eventId: string, ticketId: string) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const ticket = await tx.ticketType.findUnique({
+        where: { id: ticketId },
+        select: {
+          id: true,
+          eventId: true,
+          name: true,
+          quota: true,
+          availableQuota: true,
+        },
+      });
+
+      if (!ticket || ticket.eventId !== eventId) {
+        throw createCustomError(404, "Ticket type not found");
+      }
+
+      const sold = ticket.quota - ticket.availableQuota;
+      if (sold > 0) {
+        throw createCustomError(
+          400,
+          "Cannot delete ticket type that already has sold tickets"
+        );
+      }
+
+      await tx.ticketType.delete({
+        where: { id: ticketId },
+      });
+
+      await recomputeEventFromTickets(tx, eventId);
+
+      const allTickets = await tx.ticketType.findMany({
+        where: { eventId },
+        orderBy: { name: "asc" },
+      });
+
+      return allTickets;
     });
   } catch (err) {
     throw err;

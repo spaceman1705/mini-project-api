@@ -9,6 +9,8 @@ import {
   getMyEvents,
   setEventStatus,
   updateEvent,
+  updateTicketType,
+  deleteTicketType,
 } from "../services/event.service";
 import { Prisma } from "@prisma/client";
 import { Token } from "../middlewares/auth.middleware";
@@ -347,6 +349,63 @@ export async function createTicketTypesController(
     const data = await addTicketTypes(id, items);
 
     res.status(201).json({
+      message: "OK",
+      data,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateTicketTypeController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { id, ticketId } = req.params;
+    const body = req.body as {
+      name?: string;
+      description?: string;
+      price?: number | string;
+      quota?: number | string;
+    };
+
+    const payload = {
+      name: body.name,
+      description: body.description,
+      price:
+        body.price !== undefined
+          ? Number(body.price as number | string)
+          : undefined,
+      quota:
+        body.quota !== undefined
+          ? Number(body.quota as number | string)
+          : undefined,
+    };
+
+    const data = await updateTicketType(id, ticketId, payload);
+
+    res.json({
+      message: "OK",
+      data,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteTicketTypeController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { id, ticketId } = req.params;
+
+    const data = await deleteTicketType(id, ticketId);
+
+    res.json({
       message: "OK",
       data,
     });
