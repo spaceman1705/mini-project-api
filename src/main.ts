@@ -8,6 +8,7 @@ import router from "./routers";
 import profileRouter from "./routers";
 import dashboardRoutes from "./routers/dashboard.route";
 import adminRoutes from "./routers/admin.route";
+import transactionRoutes from './routers/transaction.route';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use(
   },
   adminRoutes
 );
+app.use('/api/transactions', transactionRoutes);
 
 app.use(errorMiddleware);
 

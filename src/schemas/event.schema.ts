@@ -29,8 +29,8 @@ export const ticketTypeCreateSchema = z.object({
         z.object({
           name: z.string().min(2, "Name must be at least 2 characters"),
           description: z.string().default(""),
-          price: z.number().min(0),
-          quota: z.number().int().min(1),
+          price: z.coerce.number().min(0),
+          quota: z.coerce.number().int().min(1),
         })
       )
       .min(1),
@@ -40,8 +40,8 @@ export const ticketTypeCreateSchema = z.object({
 export const voucherCreateSchema = z.object({
   body: z.object({
     code: z.string().min(3, "Code must be at least 3 characters"),
-    discountAmount: z.number().min(0),
-    maxUsage: z.number().int().min(1).optional(),
+    discountAmount: z.coerce.number().min(0),
+    maxUsage: z.coerce.number().int().min(1).optional(),
     expiredAt: z.string().datetime(),
   }),
 });

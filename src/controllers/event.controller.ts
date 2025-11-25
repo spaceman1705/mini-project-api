@@ -53,6 +53,17 @@ export async function createEventController(
       slug,
     });
 
+    const ticketData = await addTicketTypes(data.id, [
+      {
+        name: "Regular Ticket", // Nama tiket default
+        description: `Tiket standar untuk event ${parsedBody.title}`,
+        price: parsedBody.price, // Ambil harga dari input event
+        quota: parsedBody.availableSeats, // Ambil kuota dari availableSeats
+      },
+    ]);
+    
+    console.log("Tiket berhasil dibuat:", ticketData);
+
     res.status(201).json({
       message: "OK",
       data,
