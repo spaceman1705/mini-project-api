@@ -16,6 +16,11 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
+// Tambahkan root route untuk testing
+app.get("/", (req, res) => {
+  res.json({ message: "API is running", status: "ok" });
+});
+
 app.use("/api", router);
 app.use("/api/profile", profileRouter);
 app.use("/api/dashboard", dashboardRoutes);
@@ -31,5 +36,12 @@ app.use('/api/transactions', transactionRoutes);
 
 app.use(errorMiddleware);
 
-import { VercelRequest, VercelResponse } from "@vercel/node";
-export default (req: VercelRequest, res: VercelResponse) => app(req, res);
+// Untuk development/local
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT || 3000, () => {
+    console.log(`Server running on port ${PORT || 3000}`);
+  });
+}
+
+// Export untuk Vercel
+export default app;
