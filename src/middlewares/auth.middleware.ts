@@ -74,7 +74,7 @@ export function authenticateToken(
   next: NextFunction
 ): void {
   console.log("🟢 authenticateToken executing...");
-  
+
   try {
     const authHeader = req.headers.authorization;
     console.log("Auth header exists:", !!authHeader);
