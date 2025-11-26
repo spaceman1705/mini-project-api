@@ -20,6 +20,7 @@
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^6.18.0",
+    "@vercel/node": "^5.5.12",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.8.0",
     "cors": "^2.8.5",

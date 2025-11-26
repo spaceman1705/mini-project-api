@@ -5,7 +5,7 @@ import helmet from "helmet";
 import { PORT } from "./config/env.config";
 import errorMiddleware from "./middlewares/error.middleware";
 import router from "./routers";
-import profileRouter from "./routers";
+import profileRouter from "./routers/profile.route";
 import dashboardRoutes from "./routers/dashboard.route";
 import adminRoutes from "./routers/admin.route";
 import transactionRoutes from './routers/transaction.route';
@@ -31,6 +31,5 @@ app.use('/api/transactions', transactionRoutes);
 
 app.use(errorMiddleware);
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+import { VercelRequest, VercelResponse } from "@vercel/node";
+export default (req: VercelRequest, res: VercelResponse) => app(req, res);
