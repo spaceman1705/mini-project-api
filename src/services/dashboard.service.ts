@@ -49,7 +49,8 @@ export async function getCustomerUpcomingEventsService(userId: string) {
           startDate: true,
           endDate: true,
           location: true,
-          bannerImg: true
+          bannerImg: true,
+          category: true
         }
       }
     },
