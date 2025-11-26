@@ -19,9 +19,9 @@ export async function getProfileService(userId: string) {
         lastname: true,
         email: true,
         role: true,
-        user_img: true,
-        referralCode: true,
-        pointsBalance: true,
+        profilePicture: true,
+        refferalCode: true,
+        point: true,
         createdAt: true,
       },
     });
@@ -47,7 +47,7 @@ export async function updateProfileService(
         firstname: true,
         lastname: true,
         email: true,
-        user_img: true,
+        profilePicture: true,
         updatedAt: true,
       },
     });
