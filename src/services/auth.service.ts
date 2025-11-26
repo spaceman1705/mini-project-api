@@ -162,7 +162,6 @@ export async function login(email: string, password: string) {
       firstname: user.firstname,
       lastname: user.lastname,
       role: user.role,
-      refferalCode: user.refferalCode,
     };
 
     const accessToken = sign(payload, SECRET_KEY, { expiresIn: "10m" });

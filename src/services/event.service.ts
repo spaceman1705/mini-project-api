@@ -120,7 +120,7 @@ export async function updateEvent(id: string, params: Prisma.EventUpdateInput) {
       data: {
         ...params,
         ...(start ? { startDate: start } : {}),
-        ...(end ? { endDate: end } : {}),
+        ...(start ? { endDate: start } : {}),
       },
     });
 

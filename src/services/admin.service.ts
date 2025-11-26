@@ -133,7 +133,7 @@ export async function rejectEventService(eventId: string) {
 
   const updatedEvent = await prisma.event.update({
     where: { id: eventId },
-    data: { status: 'CANCELED' },
+    data: { status: "CANCELED" },
     include: {
       organizer: {
         select: {
