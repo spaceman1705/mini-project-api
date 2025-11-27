@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome Email</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #f9fafb;
+        margin: 0;
+        padding: 0;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background-color: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+      .header {
+        background: linear-gradient(135deg, #4040BF, #BF4099);
+        color: #ffffff;
+        text-align: center;
+        padding: 30px 20px;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 26px;
+      }
+      .content {
+        padding: 30px 25px;
+        line-height: 1.6;
+        text-align: center;
+      }
+      .content h2 {
+        color: #111827;
+        font-size: 22px;
+      }
+      .content p {
+        color: #4b5563;
+        font-size: 16px;
+      }
+      .button {
+        background: linear-gradient(135deg, #4040BF, #BF4099);
+        color: #ffffff !important;
+        display: inline-block;
+        padding: 12px 24px;
+        margin-top: 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .footer {
+        background-color: #f3f4f6;
+        color: #6b7280;
+        text-align: center;
+        padding: 15px 10px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Welcome 🎉</h1>
+      </div>
+      <div class="content">
+        <h2>Hi, {{email}}!</h2>
+        <p>
+          Thank you for joining us. We’re excited to have you onboard! You can
+          now explore our platform, connect with others, and enjoy all the
+          features we’ve built for you.
+        </p>
+        <a href="{{redirect_url}}" target="_blank" class="button">Get Started</a>
+      </div>
+    </div>
+  </body>
+</html>
