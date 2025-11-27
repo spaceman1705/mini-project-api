@@ -147,6 +147,9 @@ export async function updateUserRole(req: Request, res: Response) {
     const { userId } = req.params;
     const { role } = req.body;
 
+    console.log('🎯 User ID from params:', userId);
+    console.log('🎯 Role from body:', role);
+
     const user = await updateUserRoleService(userId, role);
 
     res.json({

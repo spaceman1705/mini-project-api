@@ -32,7 +32,7 @@ router.delete('/events/:eventId', deleteEvent);
 
 // User Management
 router.get('/users', getAllUsers);
-router.patch('/users/:id/role', updateUserRole);
+router.patch('/users/:userId/role', updateUserRole);
 router.delete('/users/:id', deleteUser);
 
 // Transaction Management
