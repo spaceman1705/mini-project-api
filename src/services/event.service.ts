@@ -17,23 +17,24 @@ export async function createEvent(
     price: number;
     availableSeats: number;
     slug: string;
-    status?: "DRAFT" | "PUBLISHED" | "CANCELED" | "FINISHED";
+    status?: "DRAFT" | "PUBLISHED" | "CANCELED";
   }
 ) {
-  const uploaded = imgFile ? await cloudinaryUpload(imgFile) : null;
-  const uploadUrl = uploaded?.secure_url;
+  let uploadUrl: string | undefined;
 
   try {
-    // Ambil user
+    if (imgFile) {
+      const uploaded = await cloudinaryUpload(imgFile);
+      uploadUrl = uploaded?.secure_url;
+    }
+
     const user = await getUserByEmail(email);
     if (!user) throw createCustomError(401, "Invalid user");
 
-    // Validasi tanggal
     const start = new Date(params.startDate);
     const end = new Date(params.endDate);
     if (end <= start) throw createCustomError(400, "End date must be after start date");
 
-    // Buat event beserta ticketType default
     const event = await prisma.event.create({
       data: {
         title: params.title,
@@ -46,10 +47,8 @@ export async function createEvent(
         availableSeats: params.availableSeats,
         slug: params.slug,
         status: params.status ?? "DRAFT",
-        bannerImg: uploadUrl,
+        bannerImg: uploadUrl ?? null,
         organizerId: user.id,
-
-        // TicketType default
         ticketType: {
           create: [
             {
@@ -63,13 +62,12 @@ export async function createEvent(
         },
       },
       include: {
-        ticketType: true, // supaya langsung dikembalikan ke frontend
+        ticketType: true,
       },
     });
 
     return event;
   } catch (err) {
-    // Jika upload banner gagal, hapus dari Cloudinary
     if (uploadUrl) await cloudinaryRemove(uploadUrl);
     throw err;
   }

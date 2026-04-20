@@ -1,4 +1,4 @@
-import z, { file } from "zod";
+import z from "zod";
 import { fileSchema } from "./common.schema";
 
 export const eventBody = z.object({
